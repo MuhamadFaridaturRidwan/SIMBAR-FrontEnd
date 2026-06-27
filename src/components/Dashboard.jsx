@@ -168,7 +168,7 @@ export default function Dashboard() {
               </h2>
               {/* Ganti href="#" dengan <Link to="/transaksi"> saat routing siap */}
               <a
-                href="#"
+                href="/transaksi"
                 className="text-[#1d4ed8] text-xs font-bold hover:underline"
               >
                 Lihat Semua

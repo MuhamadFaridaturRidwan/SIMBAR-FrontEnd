@@ -6,10 +6,10 @@ import { Home, Package, RefreshCw, BarChart3 } from "lucide-react";
 // href masih "#" sementara — gampang diganti ke <Link to="..."> dari
 // react-router-dom nanti, makanya field "to" sudah disiapkan duluan.
 const menuItems = [
-  { label: "Dashboard", to: "/dashboard", icon: Home, active: true },
-  { label: "Inventori Barang", to: "/daftar-barang", icon: Package, active: false },
-  { label: "Transaksi", to: "/transaksi", icon: RefreshCw, active: false },
-  { label: "Laporan", to: "/laporan", icon: BarChart3, active: false },
+  { label: "Dashboard", to: "/", icon: Home },
+  { label: "Inventori Barang", to: "/daftar-barang", icon: Package },
+  { label: "Transaksi", to: "/transaksi", icon: RefreshCw },
+  { label: "Laporan", to: "/laporan", icon: BarChart3 },
 ];
 
 export default function Sidebar() {
@@ -28,7 +28,7 @@ export default function Sidebar() {
             <li key={label}>
               {/* Ganti href="#" dengan <Link to={to}> dari react-router-dom saat routing siap */}
               <a
-                href="#"
+                href={to}
                 className={
                   active
                     ? "flex items-center gap-3 bg-[#f0f5ff] text-[#1d4ed8] p-3 rounded-lg font-semibold text-[15px]"
