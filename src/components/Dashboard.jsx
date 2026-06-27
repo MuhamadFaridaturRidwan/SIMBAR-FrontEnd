@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import {
   mockSummary,
@@ -167,12 +168,12 @@ export default function Dashboard() {
                 Aktivitas Terakhir
               </h2>
               {/* Ganti href="#" dengan <Link to="/transaksi"> saat routing siap */}
-              <link
-                href="/transaksi"
+              <Link
+                to="/transaksi"
                 className="text-[#1d4ed8] text-xs font-bold hover:underline"
               >
                 Lihat Semua
-              </Link>
+              </Link> 
             </div>
             <div className="p-6 space-y-6">
               {aktivitas.map((ra) => {

@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from "react";
 import { ArrowUp, ArrowDown, Search } from "lucide-react";
 import Sidebar from "./Sidebar";
+import { Link } from "react-router-dom";
 
 // ----------------------------------------------------------------------
 // MOCK DATA
@@ -142,19 +143,19 @@ export default function Transaksi() {
           </div>
           <div className="flex gap-3">
             {/* Ganti href="#" dengan <Link to="/tambah-masuk"> dari react-router-dom saat routing siap */}
-            <a
-              href="#"
+            <Link
+              to="/tambah-masuk"
               className="bg-[#16a34a] text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm shadow-sm hover:bg-green-700 transition w-fit"
             >
               <ArrowUp size={16} /> Barang Masuk
-            </a>
+            </Link>
             {/* Ganti href="#" dengan <Link to="/tambah-keluar"> dari react-router-dom saat routing siap */}
-            <a
-              href="#"
+            <Link
+              to="/tambah-keluar"
               className="bg-[#ea580c] text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm shadow-sm hover:bg-orange-700 transition w-fit"
             >
               <ArrowDown size={16} /> Barang Keluar
-            </a>
+            </Link>
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 // DaftarBarang.jsx
 import React, { useState, useMemo } from "react";
 import { Package, Search, MapPin, Plus, Trash2, Edit } from "lucide-react";
+import { Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 // ----------------------------------------------------------------------
@@ -181,12 +182,12 @@ export default function DaftarBarang() {
             </p>
           </div>
           {/* Ganti href="#" dengan <Link to="/tambah-barang"> dari react-router-dom saat routing siap */}
-          <a
-            href="#"
+          <Link
+            to="/tambah-barang"
             className="bg-[#1d4ed8] hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm transition shadow-sm w-fit"
           >
             <Plus size={16} /> Tambah Barang
-          </a>
+          </Link>
         </div>
 
         {/* === Filter & Pencarian (real-time, tanpa reload) === */}
