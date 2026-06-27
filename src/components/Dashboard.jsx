@@ -167,12 +167,12 @@ export default function Dashboard() {
                 Aktivitas Terakhir
               </h2>
               {/* Ganti href="#" dengan <Link to="/transaksi"> saat routing siap */}
-              <a
+              <link
                 href="/transaksi"
                 className="text-[#1d4ed8] text-xs font-bold hover:underline"
               >
                 Lihat Semua
-              </a>
+              </Link>
             </div>
             <div className="p-6 space-y-6">
               {aktivitas.map((ra) => {
