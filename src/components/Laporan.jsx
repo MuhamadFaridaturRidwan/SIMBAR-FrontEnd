@@ -131,6 +131,37 @@ export default function Laporan() {
     );
   }, [stokRendahList]);
 
+  const handleDownloadCSV = () => {
+  let csvContent = "data:text/csv;charset=utf-8,";
+  
+  // 1. Tambahkan Judul & Header Inventori
+  csvContent += "=== LAPORAN INVENTORI ===\n";
+  csvContent += "Kode,Nama Produk,Stok,Harga Satuan,Total Nilai\n";
+  
+  // Gunakan data barang dari state/file mockData milikmu
+  mockBarangData.forEach((r) => {
+    const totalNilai = r.stok_saat_ini * r.harga_satuan;
+    csvContent += `${r.kode_barang},${r.nama_barang},${r.stok_saat_ini},${r.harga_satuan},${totalNilai}\n`;
+  });
+
+  csvContent += "\n=== RIWAYAT TRANSAKSI ===\n";
+  csvContent += "Tanggal,Tipe,Produk,Jumlah,Referensi\n";
+
+  // Ambil data transaksi dari state/file mockData milikmu
+  mockTransaksiData.forEach((r) => {
+    csvContent += `${r.tanggal},${r.tipe_trx.toUpperCase()},${r.nama_barang},${r.jumlah},${r.referensi}\n`;
+  });
+
+  // Pembuatan trigger download otomatis di browser
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `Laporan_Lengkap_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8f9fc]">
       <Sidebar />
@@ -153,14 +184,12 @@ export default function Laporan() {
               <Printer size={16} /> Print
             </button>
             {/* Ganti href="#" dengan endpoint unduh laporan sungguhan saat backend siap */}
-            <a
-              href="#"
-              target="_blank"
-              rel="noreferrer"
-              className="bg-[#1d4ed8] hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm transition shadow-sm"
+            <button 
+              onClick={handleDownloadCSV} 
+              className="bg-[#1d4ed8] hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm transition shadow-sm cursor-pointer"
             >
               <Download size={16} /> Download Laporan Lengkap
-            </a>
+            </button>
           </div>
         </div>
 
