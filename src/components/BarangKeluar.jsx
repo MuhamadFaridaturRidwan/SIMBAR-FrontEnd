@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"; // 1. Tambah useEffect
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Save, ArrowDown, Loader2 } from "lucide-react"; // Tambah Loader2
-import axios from "axios"; // 2. Import axios
+import api from "../api"; // 2. Menggunakan konfigurasi API terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 
 function BarangKeluar() {
@@ -27,7 +27,8 @@ function BarangKeluar() {
     const fetchBarangOptions = async () => {
       try {
         setLoadingOptions(true);
-        const response = await axios.get("http://localhost:8000/api/v1/barang");
+        // Menembak endpoint relatif /barang (Otomatis membawa Bearer token)
+        const response = await api.get("/barang");
         setBarangOptions(response.data.data || response.data);
       } catch (error) {
         console.error("Gagal memuat opsi produk:", error);
@@ -56,7 +57,7 @@ function BarangKeluar() {
     if (produkTerpilih) {
       const jumlahKeluar = parseInt(formData.jumlah);
       
-      // Validasi Pintar: Jangan sampai pengeluaran melebihi stok di DB
+      // Validasi Pintar (Client-side): Jangan sampai pengeluaran melebihi stok di DB
       if (produkTerpilih.stok_saat_ini < jumlahKeluar) {
         alert(`GAGAL! Stok ${produkTerpilih.nama_barang} tidak mencukupi.\nSisa stok di gudang hanya: ${produkTerpilih.stok_saat_ini} unit.`);
         return; // Hentikan proses, jangan tembak ke API
@@ -66,8 +67,8 @@ function BarangKeluar() {
     setIsSubmitting(true);
 
     try {
-      // Sesuaikan rute endpoint ini dengan milik temen lu (misal: /api/v1/barang-keluar)
-      await axios.post("http://localhost:8000/api/v1/barang-keluar", formData);
+      // Menggunakan api.post relatif ke /barang-keluar dengan token otomatis
+      await api.post("/barang-keluar", formData);
 
       alert("Transaksi Barang Keluar Berhasil dicatat ke database!");
       navigate("/transaksi");
