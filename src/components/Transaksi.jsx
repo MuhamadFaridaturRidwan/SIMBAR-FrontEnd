@@ -1,48 +1,85 @@
 // Transaksi.jsx
-import React, { useState, useEffect, useMemo } from "react"; // 1. Tambah useEffect
-import { ArrowUp, ArrowDown, Search } from "lucide-react";
-import axios from "axios"; // 2. Import axios
+import React, { useState, useEffect, useMemo } from "react"; 
+import { ArrowUp, ArrowDown, Search, Loader2 } from "lucide-react";
+import api from "../api"; // 1. Mengubah import dari axios ke instance api terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 import { Link } from "react-router-dom";
 
 export default function Transaksi() {
-  // 3. STATE BARU (Mulai dari array kosong untuk menampung riwayat transaksi dari database)
+  // STATE REAL DATABASE (Menampung gabungan riwayat transaksi masuk & keluar)
   const [transaksiList, setTransaksiList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // State filter — menggantikan $_GET['search'], $_GET['tipe'], $_GET['tanggal']
+  // State filter pencarian halaman
   const [search, setSearch] = useState("");
   const [tipe, setTipe] = useState("");
   const [tanggal, setTanggal] = useState("");
 
-  // 4. RITUAL FETCH DATA RIWAYAT TRANSAKSI DARI API LARAVEL
+  // 2. RITUAL FETCH DATA GABUNGAN SECARA ASYNCHRONOUS (ANTI-404)
   useEffect(() => {
-    const fetchTransaksi = async () => {
+    const fetchTransaksiGudang = async () => {
       try {
         setLoading(true);
-        // Sesuaikan dengan rute endpoint gabungan (misal: /api/v1/transaksi)
-        const response = await axios.get("http://localhost:8000/api/v1/transaksi");
         
-        // Simpan data array ke dalam state
-        setTransaksiList(response.data.data || response.data);
+        // Menembak dua endpoint aktif Laravel secara bersamaan menggunakan Promise.all
+        const [resMasuk, resKeluar] = await Promise.all([
+          api.get("/barang-masuk"),
+          api.get("/barang-keluar")
+        ]);
+
+        const dataMasukRaw = resMasuk.data.data || resMasuk.data || [];
+        const dataKeluarRaw = resKeluar.data.data || resKeluar.data || [];
+
+        // Standarisasi properti objek Barang Masuk agar match dengan struktur tabel UI
+        const dataMasuk = dataMasukRaw.map(item => ({
+          // Potong YYYY-MM-DD agar sinkron dengan input date HTML
+          tanggal: item.tanggal_masuk ? item.tanggal_masuk.substring(0, 10) : item.created_at?.substring(0, 10),
+          tipe_trx: "Barang Masuk",
+          nama_barang: item.barang?.nama_barang || item.nama_barang || "Produk",
+          kode_barang: item.barang?.kode_barang || item.kode_barang || "-",
+          jumlah: item.jumlah || item.qty || 0,
+          referensi: item.referensi || "-",
+          catatan: item.catatan || "-",
+          oleh: item.oleh || "Admin"
+        }));
+
+        // Standarisasi properti objek Barang Keluar agar match dengan struktur tabel UI
+        const dataKeluar = dataKeluarRaw.map(item => ({
+          tanggal: item.tanggal_keluar ? item.tanggal_keluar.substring(0, 10) : item.created_at?.substring(0, 10),
+          tipe_trx: "Barang Keluar",
+          nama_barang: item.barang?.nama_barang || item.nama_barang || "Produk",
+          kode_barang: item.barang?.kode_barang || item.kode_barang || "-",
+          jumlah: item.jumlah || item.qty || 0,
+          referensi: item.referensi || "-",
+          catatan: item.catatan || "-",
+          oleh: item.oleh || "Admin"
+        }));
+
+        // Menggabungkan kedua list data (Simulasi UNION ALL database)
+        setTransaksiList([...dataMasuk, ...dataKeluar]);
+
       } catch (error) {
         console.error("Gagal memuat data transaksi:", error);
-        alert("Gagal mengambil riwayat transaksi dari server!");
+        if (error.response?.status === 401) {
+          alert("Sesi masuk habis, silakan login ulang!");
+        } else {
+          alert("Gagal mengambil riwayat transaksi dari server!");
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTransaksi();
+    fetchTransaksiGudang();
   }, []);
 
-  // 5. PENYESUAIAN FILTER (Saringan memantau transaksiList dari DB, bukan mock data lagi)
+  // 3. PENYESUAIAN FILTER OPTIMASI INSTANT DI FRONT-END
   const filteredTransaksi = useMemo(() => {
     return transaksiList
       .filter((row) => {
         const keyword = search.trim().toLowerCase();
         
-        // Ditambahkan pengecekan (row.field && ...) agar tidak crash jika ada kolom null di DB
+        // Pengecekan null-safety menghindari aplikasi crash akibat record kosong di DB
         const matchSearch =
           keyword === "" ||
           (row.nama_barang && row.nama_barang.toLowerCase().includes(keyword)) ||
@@ -50,7 +87,8 @@ export default function Transaksi() {
           (row.kode_barang && row.kode_barang.toLowerCase().includes(keyword));
 
         const matchTipe = tipe === "" || row.tipe_trx === tipe;
-
+        
+        // Pengecekan kecocokan tanggal (Format YYYY-MM-DD)
         const matchTanggal = tanggal === "" || row.tanggal === tanggal;
 
         return matchSearch && matchTipe && matchTanggal;
@@ -140,7 +178,7 @@ export default function Transaksi() {
           </div>
         </div>
 
-        {/* === Tabel Riwayat Transaksi === */}
+        {/* === Tabel Riwayat Transaksi Gabungan === */}
         <div className="bg-white rounded-b-xl border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-y border-gray-200">
@@ -158,12 +196,15 @@ export default function Transaksi() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Sedang memuat riwayat transaksi dari database...
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin text-gray-400" />
+                      Sedang menyusun riwayat data transaksi dari database...
+                    </div>
                   </td>
                 </tr>
               ) : filteredTransaksi.length > 0 ? (
                 filteredTransaksi.map((row, idx) => {
-                  const isMasuk = row.tipe_trx === "Barang Masuk" || row.tipe_trx === "masuk";
+                  const isMasuk = row.tipe_trx === "Barang Masuk";
                   return (
                     <tr key={`${row.kode_barang}-${row.referensi}-${idx}`} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-[13px] text-gray-600 font-medium">
@@ -200,13 +241,13 @@ export default function Transaksi() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-[13px] font-semibold text-gray-700">
-                        {row.referensi || "-"}
+                        {row.referensi}
                       </td>
                       <td className="px-6 py-4 text-[12px] text-gray-500 w-48">
-                        {row.catatan || "-"}
+                        {row.catatan}
                       </td>
                       <td className="px-6 py-4 text-[12px] text-gray-600">
-                        {row.oleh || "Admin"}
+                        {row.oleh}
                       </td>
                     </tr>
                   );
@@ -214,7 +255,7 @@ export default function Transaksi() {
               ) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Tidak ada riwayat transaksi di database.
+                    Tidak ada catatan riwayat transaksi di database.
                   </td>
                 </tr>
               )}
