@@ -1,170 +1,103 @@
 // DaftarBarang.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react"; // 1. Tambah useEffect
 import { Package, Search, MapPin, Plus, Trash2, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
+import axios from "axios"; // 2. Import axios
 import Sidebar from "./Sidebar";
 
-// ----------------------------------------------------------------------
-// MOCK DATA
-// Nama field dipertahankan mirip kolom tabel `barang` (id_barang,
-// nama_barang, dst) supaya mapping ke response API nanti mudah — tinggal
-// ganti sumber data dari array statis ini ke hasil fetch/axios.
-// Variasi stok sengaja dibuat mencakup ketiga status: Tersedia, Rendah, Habis.
-// ----------------------------------------------------------------------
-const initialBarangData = [
-  {
-    id_barang: 1,
-    nama_barang: "Helm Safety SNI Kuning",
-    kode_barang: "BRG-0021",
-    supplier: "PT Sumber Aman",
-    kategori: "Safety",
-    lokasi: "Rak A1-02",
-    stok_saat_ini: 45,
-    stok_min: 20,
-  },
-  {
-    id_barang: 2,
-    nama_barang: "Kardus Box Double Wall 40x40",
-    kode_barang: "BRG-0034",
-    supplier: "CV Karton Jaya",
-    kategori: "Packaging",
-    lokasi: "Rak B2-05",
-    stok_saat_ini: 8,
-    stok_min: 15,
-  },
-  {
-    id_barang: 3,
-    nama_barang: "Kertas A4 80gsm",
-    kode_barang: "BRG-0102",
-    supplier: "Toko ATK Sejahtera",
-    kategori: "Office Supplies",
-    lokasi: "Rak C1-01",
-    stok_saat_ini: 0,
-    stok_min: 10,
-  },
-  {
-    id_barang: 4,
-    nama_barang: "Sarung Tangan Safety Anti Panas",
-    kode_barang: "BRG-0177",
-    supplier: "PT Sumber Aman",
-    kategori: "Safety",
-    lokasi: "Rak A1-04",
-    stok_saat_ini: 4,
-    stok_min: 12,
-  },
-  {
-    id_barang: 5,
-    nama_barang: "Lakban Bening 2 inch",
-    kode_barang: "BRG-0099",
-    supplier: "CV Karton Jaya",
-    kategori: "Packaging",
-    lokasi: "Rak B2-01",
-    stok_saat_ini: 3,
-    stok_min: 8,
-  },
-  {
-    id_barang: 6,
-    nama_barang: "Gunting Listrik Crimping",
-    kode_barang: "BRG-0210",
-    supplier: "Toko Alat Teknik",
-    kategori: "Equipment",
-    lokasi: "Rak D3-02",
-    stok_saat_ini: 17,
-    stok_min: 5,
-  },
-  {
-    id_barang: 7,
-    nama_barang: "Spidol Whiteboard Hitam",
-    kode_barang: "BRG-0145",
-    supplier: "Toko ATK Sejahtera",
-    kategori: "Office Supplies",
-    lokasi: "Rak C1-03",
-    stok_saat_ini: 60,
-    stok_min: 20,
-  },
-  {
-    id_barang: 8,
-    nama_barang: "Obeng Set Multifungsi",
-    kode_barang: "BRG-0256",
-    supplier: "Toko Alat Teknik",
-    kategori: "Equipment",
-    lokasi: "Rak D3-05",
-    stok_saat_ini: 0,
-    stok_min: 6,
-  },
-];
-
-// Helper status, mengikuti logika PHP asal:
-// stok 0 -> Habis, stok <= stok_min -> Rendah, selain itu -> Tersedia
+// Helper status tetap dipertahankan
 function getStatusInfo(item) {
-  if (item.stok_saat_ini === 0) {
+  if (parseInt(item.stok_saat_ini) === 0) {
     return { label: "Habis", className: "bg-red-100 text-red-700" };
   }
-  if (item.stok_saat_ini <= item.stok_min) {
+  if (parseInt(item.stok_saat_ini) <= parseInt(item.stok_min)) {
     return { label: "Rendah", className: "bg-yellow-100 text-yellow-700" };
   }
   return { label: "Tersedia", className: "bg-[#dcfce3] text-[#166534]" };
 }
 
 export default function DaftarBarang() {
-  // Data barang disimpan sebagai state supaya tombol Hapus bisa
-  // benar-benar menghilangkan baris dari tampilan (hapus lokal dulu;
-  // nanti diganti panggilan axios.delete(`/api/barang/${id}`) ke backend).
-  const [barangList, setBarangList] = useState(initialBarangData);
+  // 3. Set nilai awal jadi array kosong untuk menampung data dari database
+  const [barangList, setBarangList] = useState([]);
+  const [loading, setLoading] = useState(true); // State loading biar user tahu data lagi diambil
 
-  // State filter — menggantikan $_GET['search'], $_GET['kategori'], $_GET['status']
+  // State filter
   const [search, setSearch] = useState("");
   const [kategori, setKategori] = useState("");
   const [status, setStatus] = useState("");
 
-  // ----------------------------------------------------------------------
-  // TODO (integrasi API): kalau datanya besar, pindahkan filter ini ke
-  // server — kirim search/kategori/status sebagai query param ke
-  // axios.get("/api/barang", { params: { search, kategori, status } }).
-  // Untuk sekarang masih disaring di client dari barangList.
-  // ----------------------------------------------------------------------
+  // 4. Ritual mengambil data asli dari API Laravel Back-End
+  const fetchBarang = async () => {
+    try {
+      setLoading(true);
+      // Sesuaikan URL-nya dengan endpoint API milik temen lu (contoh: /api/v1/barang)
+      const response = await axios.get("http://localhost:8000/api/v1/barang");
+      
+      // Biasanya response data Laravel dibungkus dalam response.data.data
+      setBarangList(response.data.data || response.data); 
+    } catch (error) {
+      console.error("Gagal mengambil data dari database:", error);
+      alert("Gagal memuat data barang dari server!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBarang();
+  }, []);
+
+  // Logika filter Client-side tetap dipertahankan agar pencarian terasa instant dan real-time
   const filteredBarang = useMemo(() => {
     return barangList.filter((item) => {
       const keyword = search.trim().toLowerCase();
       const matchSearch =
         keyword === "" ||
-        item.nama_barang.toLowerCase().includes(keyword) ||
-        item.kode_barang.toLowerCase().includes(keyword);
+        (item.nama_barang && item.nama_barang.toLowerCase().includes(keyword)) ||
+        (item.kode_barang && item.kode_barang.toLowerCase().includes(keyword));
 
       const matchKategori = kategori === "" || item.kategori === kategori;
 
       let matchStatus = true;
+      const stokSaatIni = parseInt(item.stok_saat_ini);
+      const stokMin = parseInt(item.stok_min);
+
       if (status === "Stok Tersedia") {
-        matchStatus = item.stok_saat_ini > item.stok_min;
+        matchStatus = stokSaatIni > stokMin;
       } else if (status === "Stok Rendah") {
-        matchStatus = item.stok_saat_ini <= item.stok_min && item.stok_saat_ini > 0;
+        matchStatus = stokSaatIni <= stokMin && stokSaatIni > 0;
       } else if (status === "Stok Habis") {
-        matchStatus = item.stok_saat_ini === 0;
+        matchStatus = stokSaatIni === 0;
       }
 
       return matchSearch && matchKategori && matchStatus;
     });
   }, [barangList, search, kategori, status]);
 
-  // Hapus barang — sementara hanya hapus dari state lokal.
-  // TODO (integrasi API): panggil axios.delete(`/api/barang/${id}`) lalu
-  // baru update state setelah responsenya sukses.
-  function handleHapus(item) {
+  // 5. Fungsi Hapus Barang terintegrasi ke API Back-End (DELETE)
+  async function handleHapus(item) {
     const konfirmasi = window.confirm(
       `Yakin ingin menghapus ${item.nama_barang}?`
     );
     if (konfirmasi) {
-      setBarangList((prev) =>
-        prev.filter((b) => b.id_barang !== item.id_barang)
-      );
+      try {
+        // Tembak endpoint delete sesuai id_barang
+        await axios.delete(`http://localhost:8000/api/v1/barang/${item.id_barang}`);
+        
+        // Jika sukses di database, update state lokal biar barisnya hilang dari layar
+        setBarangList((prev) => prev.filter((b) => b.id_barang !== item.id_barang));
+        alert("Barang berhasil dihapus!");
+      } catch (error) {
+        console.error("Gagal menghapus barang:", error);
+        alert("Gagal menghapus barang dari database!");
+      }
     }
   }
 
-  // Placeholder untuk aksi Edit — tinggal diarahkan ke route edit
-  // (misal navigate(`/daftar-barang/${item.id_barang}/edit`)) saat
-  // react-router-dom sudah dipasang.
   function handleEdit(item) {
     console.log("Edit barang:", item);
+    // Nanti lu bisa arahkan pakai useNavigate ke halaman edit, contoh:
+    // navigate(`/edit-barang/${item.id_barang}`);
   }
 
   return (
@@ -178,10 +111,9 @@ export default function DaftarBarang() {
               Inventori Barang
             </h1>
             <p className="text-gray-500 mt-1.5 text-[15px]">
-              Kelola semua barang di gudang
+              Kelola semua barang di gudang (Real-time DB)
             </p>
           </div>
-          {/* Ganti href="#" dengan <Link to="/tambah-barang"> dari react-router-dom saat routing siap */}
           <Link
             to="/tambah-barang"
             className="bg-[#1d4ed8] hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm transition shadow-sm w-fit"
@@ -190,7 +122,7 @@ export default function DaftarBarang() {
           </Link>
         </div>
 
-        {/* === Filter & Pencarian (real-time, tanpa reload) === */}
+        {/* === Filter & Pencarian === */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
             <div className="col-span-6">
@@ -256,31 +188,23 @@ export default function DaftarBarang() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  Produk
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  SKU
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  Kategori
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  Lokasi
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  Jumlah
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest text-right">
-                  Aksi
-                </th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Produk</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">SKU</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Kategori</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Lokasi</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Jumlah</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredBarang.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                    Sedang memuat data dari database...
+                  </td>
+                </tr>
+              ) : filteredBarang.length > 0 ? (
                 filteredBarang.map((item) => {
                   const { label, className } = getStatusInfo(item);
                   return (
@@ -294,7 +218,7 @@ export default function DaftarBarang() {
                             {item.nama_barang}
                           </p>
                           <p className="text-[13px] text-gray-500 mt-0.5">
-                            {item.supplier}
+                            {item.supplier || "Tanpa Supplier"}
                           </p>
                         </div>
                       </td>
@@ -308,7 +232,7 @@ export default function DaftarBarang() {
                       </td>
                       <td className="px-6 py-4 text-[13px] text-gray-600 flex items-center">
                         <MapPin size={13} className="text-gray-400 mr-1.5" />
-                        {item.lokasi}
+                        {item.lokasi || "-"}
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-gray-900 text-sm">
@@ -319,9 +243,7 @@ export default function DaftarBarang() {
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`${className} px-2.5 py-1 rounded-full text-[12px] font-semibold`}
-                        >
+                        <span className={`${className} px-2.5 py-1 rounded-full text-[12px] font-semibold`}>
                           {label}
                         </span>
                       </td>
@@ -351,7 +273,7 @@ export default function DaftarBarang() {
               ) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Tidak ada produk yang cocok dengan filter.
+                    Tidak ada produk di database.
                   </td>
                 </tr>
               )}
