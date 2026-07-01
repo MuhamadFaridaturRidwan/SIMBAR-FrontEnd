@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"; // 1. Tambah useEffect
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Save, ArrowUp, Loader2 } from "lucide-react"; // Tambah Loader2
-import axios from "axios"; // 2. Import axios
+import api from "../api"; // 2. Menggunakan konfigurasi API terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 
 function BarangMasuk() {
@@ -27,8 +27,8 @@ function BarangMasuk() {
     const fetchBarangOptions = async () => {
       try {
         setLoadingOptions(true);
-        // Menembak endpoint barang untuk mengambil pilihan opsi di select option
-        const response = await axios.get("http://localhost:8000/api/v1/barang");
+        // Menembak endpoint relatif /barang (Otomatis diarahkan ke api/v1/barang)
+        const response = await api.get("/barang");
         setBarangOptions(response.data.data || response.data);
       } catch (error) {
         console.error("Gagal memuat opsi produk:", error);
@@ -51,8 +51,8 @@ function BarangMasuk() {
     setIsSubmitting(true);
 
     try {
-      // Sesuaikan endpoint ini dengan rute transaksi masuk milik backend (misal: /api/v1/barang-masuk)
-      await axios.post("http://localhost:8000/api/v1/barang-masuk", formData);
+      // Menggunakan api.post relatif ke /barang-masuk dengan token otomatis
+      await api.post("/barang-masuk", formData);
       
       alert("Transaksi Barang Masuk Berhasil dicatat ke database!");
       navigate("/transaksi");
