@@ -1,17 +1,17 @@
-import { useState } from "react";
+// BarangMasuk.jsx
+import { useState, useEffect } from "react"; // 1. Tambah useEffect
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, ArrowUp } from "lucide-react";
+import { ArrowLeft, Save, ArrowUp, Loader2 } from "lucide-react"; // Tambah Loader2
+import axios from "axios"; // 2. Import axios
 import Sidebar from "./Sidebar";
 
 function BarangMasuk() {
   const navigate = useNavigate();
 
-  // Mock data produk
-  const [mockBarang] = useState([
-    { id_barang: "1", kode_barang: "SF-001", nama_barang: "Helm Safety Krisbow", stok_saat_ini: 25 },
-    { id_barang: "2", kode_barang: "PK-002", nama_barang: "Kardus Packing A4", stok_saat_ini: 150 },
-    { id_barang: "3", kode_barang: "OS-003", nama_barang: "Spidol Snowman Hitam", stok_saat_ini: 4 },
-  ]);
+  // 3. STATE BARU (Mulai dari array kosong untuk opsi pilihan produk dari database)
+  const [barangOptions, setBarangOptions] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     id_barang: "",
@@ -22,15 +22,46 @@ function BarangMasuk() {
     catatan: "",
   });
 
+  // 4. RITUAL FETCH DAFTAR BARANG UNTUK ISI DROPDOWN
+  useEffect(() => {
+    const fetchBarangOptions = async () => {
+      try {
+        setLoadingOptions(true);
+        // Menembak endpoint barang untuk mengambil pilihan opsi di select option
+        const response = await axios.get("http://localhost:8000/api/v1/barang");
+        setBarangOptions(response.data.data || response.data);
+      } catch (error) {
+        console.error("Gagal memuat opsi produk:", error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+
+    fetchBarangOptions();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // 5. HUBUNGKAN SUBMIT FORM KE API BARANG MASUK (POST)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Transaksi Barang Masuk Berhasil dicatat!");
-    navigate("/transaksi");
+    setIsSubmitting(true);
+
+    try {
+      // Sesuaikan endpoint ini dengan rute transaksi masuk milik backend (misal: /api/v1/barang-masuk)
+      await axios.post("http://localhost:8000/api/v1/barang-masuk", formData);
+      
+      alert("Transaksi Barang Masuk Berhasil dicatat ke database!");
+      navigate("/transaksi");
+    } catch (error) {
+      console.error("Gagal mencatat barang masuk:", error);
+      alert("Gagal menyimpan transaksi masuk. Cek kembali isian data Anda!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -44,32 +75,41 @@ function BarangMasuk() {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
             Form Barang Masuk <span className="text-[#16a34a]"><ArrowUp size={28} /></span>
           </h1>
-          <p className="text-gray-500 mt-1.5 text-[15px]">Catat penambahan stok ke dalam gudang.</p>
+          <p className="text-gray-500 mt-1.5 text-[15px]">Catat penambahan stok ke dalam gudang (Real-time DB).</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm max-w-4xl">
           <div className="p-6 border-b border-gray-100 bg-[#f0fdf4] rounded-t-xl">
-            <h2 class="text-lg font-bold text-[#166534]">Detail Penerimaan Barang</h2>
+            <h2 className="text-lg font-bold text-[#166534]">Detail Penerimaan Barang</h2>
           </div>
           <form onSubmit={handleSubmit} className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="md:col-span-2">
                 <label className="block text-[13px] font-semibold text-gray-700 mb-2">Pilih Produk <span className="text-red-500">*</span></label>
-                <select name="id_barang" required value={formData.id_barang} onChange={handleChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 cursor-pointer">
-                  <option value="">-- Pilih Barang dari Gudang --</option>
-                  {mockBarang.map((b) => (
+                <select 
+                  name="id_barang" 
+                  required 
+                  disabled={loadingOptions}
+                  value={formData.id_barang} 
+                  onChange={handleChange} 
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 cursor-pointer"
+                >
+                  <option value="">
+                    {loadingOptions ? "-- Sedang memuat produk dari database... --" : "-- Pilih Barang dari Gudang --"}
+                  </option>
+                  {barangOptions.map((b) => (
                     <option key={b.id_barang} value={b.id_barang}>
-                      {b.kode_barang} - {b.nama_barang} (Stok saat ini: {b.stok_saat_ini})
+                      {b.kode_barang} - {b.nama_barang} (Stok saat ini: {b.stok_saat_ini ?? 0})
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-semibold text-gray-700 mb-2">Tanggal & Waktu Masuk <span class="text-red-500">*</span></label>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-2">Tanggal & Waktu Masuk <span className="text-red-500">*</span></label>
                 <input type="datetime-local" name="tanggal_masuk" required value={formData.tanggal_masuk} onChange={handleChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-100" />
               </div>
               <div>
-                <label className="block text-[13px] font-semibold text-gray-700 mb-2">Jumlah Barang Masuk <span class="text-red-500">*</span></label>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-2">Jumlah Barang Masuk <span className="text-red-500">*</span></label>
                 <input type="number" name="jumlah" required min="1" value={formData.jumlah} onChange={handleChange} placeholder="Masukkan jumlah unit..." className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-100" />
               </div>
               <div>
@@ -87,8 +127,25 @@ function BarangMasuk() {
             </div>
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
               <Link to="/transaksi" className="px-5 py-2.5 rounded-lg font-semibold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200">Batal</Link>
-              <button type="submit" className="px-6 py-2.5 rounded-lg font-semibold text-sm text-white bg-[#16a34a] hover:bg-green-700 shadow-sm flex items-center gap-2 cursor-pointer">
-                <Save size={16} /> Simpan Transaksi Masuk
+              
+              <button 
+                type="submit" 
+                disabled={isSubmitting || loadingOptions}
+                className={`px-6 py-2.5 rounded-lg font-semibold text-sm text-white transition shadow-sm flex items-center gap-2 ${
+                  isSubmitting || loadingOptions
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-[#16a34a] hover:bg-green-700 cursor-pointer"
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} /> Simpan Transaksi Masuk
+                  </>
+                )}
               </button>
             </div>
           </form>
