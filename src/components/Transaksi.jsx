@@ -1,121 +1,53 @@
 // Transaksi.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react"; // 1. Tambah useEffect
 import { ArrowUp, ArrowDown, Search } from "lucide-react";
+import axios from "axios"; // 2. Import axios
 import Sidebar from "./Sidebar";
 import { Link } from "react-router-dom";
 
-// ----------------------------------------------------------------------
-// MOCK DATA
-// Merepresentasikan hasil query UNION ALL (barang_masuk + barang_keluar)
-// dari transaksi.php. Field dipertahankan mirip alias kolom SQL asal
-// (tipe_trx, nama_barang, dst) agar mapping ke response API nanti mudah —
-// tinggal ganti sumber data ini dengan hasil fetch/axios dari
-// GET /api/transaksi.
-// ----------------------------------------------------------------------
-const initialTransaksiData = [
-  {
-    tanggal: "2026-06-27",
-    tipe_trx: "Barang Masuk",
-    nama_barang: "Kabel UTP Cat6 (box)",
-    kode_barang: "BRG-0301",
-    jumlah: 50,
-    referensi: "PO-2026-0612",
-    catatan: "Restock dari supplier utama",
-    oleh: "Andi Saputra",
-  },
-  {
-    tanggal: "2026-06-27",
-    tipe_trx: "Barang Keluar",
-    nama_barang: "Kertas A4 80gsm",
-    kode_barang: "BRG-0102",
-    jumlah: 20,
-    referensi: "SO-2026-0455",
-    catatan: "Permintaan divisi Administrasi",
-    oleh: "Siti Rahma",
-  },
-  {
-    tanggal: "2026-06-26",
-    tipe_trx: "Barang Keluar",
-    nama_barang: "Toner Printer HP 12A",
-    kode_barang: "BRG-0231",
-    jumlah: 5,
-    referensi: "SO-2026-0448",
-    catatan: "Penggantian toner lantai 2",
-    oleh: "Budi Santoso",
-  },
-  {
-    tanggal: "2026-06-26",
-    tipe_trx: "Barang Masuk",
-    nama_barang: "Rak Besi Siku 4 Tingkat",
-    kode_barang: "BRG-0189",
-    jumlah: 8,
-    referensi: "PO-2026-0609",
-    catatan: "Tambahan rak gudang B",
-    oleh: "Andi Saputra",
-  },
-  {
-    tanggal: "2026-06-25",
-    tipe_trx: "Barang Keluar",
-    nama_barang: "Baterai AA Alkaline",
-    kode_barang: "BRG-0114",
-    jumlah: 30,
-    referensi: "SO-2026-0441",
-    catatan: "Kebutuhan remote & senter gudang",
-    oleh: "Siti Rahma",
-  },
-  {
-    tanggal: "2026-06-24",
-    tipe_trx: "Barang Masuk",
-    nama_barang: "Helm Safety SNI Kuning",
-    kode_barang: "BRG-0021",
-    jumlah: 25,
-    referensi: "PO-2026-0601",
-    catatan: "Restock APD wajib proyek baru",
-    oleh: "Dedi Kurniawan",
-  },
-  {
-    tanggal: "2026-06-23",
-    tipe_trx: "Barang Keluar",
-    nama_barang: "Lakban Bening 2 inch",
-    kode_barang: "BRG-0099",
-    jumlah: 12,
-    referensi: "SO-2026-0436",
-    catatan: "Packing kiriman cabang Bandung",
-    oleh: "Budi Santoso",
-  },
-  {
-    tanggal: "2026-06-22",
-    tipe_trx: "Barang Masuk",
-    nama_barang: "Sarung Tangan Safety Anti Panas",
-    kode_barang: "BRG-0177",
-    jumlah: 40,
-    referensi: "PO-2026-0595",
-    catatan: "Stok pengganti yang menipis",
-    oleh: "Dedi Kurniawan",
-  },
-];
-
 export default function Transaksi() {
+  // 3. STATE BARU (Mulai dari array kosong untuk menampung riwayat transaksi dari database)
+  const [transaksiList, setTransaksiList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   // State filter — menggantikan $_GET['search'], $_GET['tipe'], $_GET['tanggal']
   const [search, setSearch] = useState("");
   const [tipe, setTipe] = useState("");
   const [tanggal, setTanggal] = useState("");
 
-  // ----------------------------------------------------------------------
-  // TODO (integrasi API): kalau datanya besar/dari backend sungguhan,
-  // pindahkan filter ini ke server — kirim search/tipe/tanggal sebagai
-  // query param ke axios.get("/api/transaksi", { params: { search, tipe, tanggal } }).
-  // Untuk sekarang masih disaring di client dari initialTransaksiData.
-  // ----------------------------------------------------------------------
+  // 4. RITUAL FETCH DATA RIWAYAT TRANSAKSI DARI API LARAVEL
+  useEffect(() => {
+    const fetchTransaksi = async () => {
+      try {
+        setLoading(true);
+        // Sesuaikan dengan rute endpoint gabungan (misal: /api/v1/transaksi)
+        const response = await axios.get("http://localhost:8000/api/v1/transaksi");
+        
+        // Simpan data array ke dalam state
+        setTransaksiList(response.data.data || response.data);
+      } catch (error) {
+        console.error("Gagal memuat data transaksi:", error);
+        alert("Gagal mengambil riwayat transaksi dari server!");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransaksi();
+  }, []);
+
+  // 5. PENYESUAIAN FILTER (Saringan memantau transaksiList dari DB, bukan mock data lagi)
   const filteredTransaksi = useMemo(() => {
-    return initialTransaksiData
+    return transaksiList
       .filter((row) => {
         const keyword = search.trim().toLowerCase();
+        
+        // Ditambahkan pengecekan (row.field && ...) agar tidak crash jika ada kolom null di DB
         const matchSearch =
           keyword === "" ||
-          row.nama_barang.toLowerCase().includes(keyword) ||
-          row.referensi.toLowerCase().includes(keyword) ||
-          row.kode_barang.toLowerCase().includes(keyword);
+          (row.nama_barang && row.nama_barang.toLowerCase().includes(keyword)) ||
+          (row.referensi && row.referensi.toLowerCase().includes(keyword)) ||
+          (row.kode_barang && row.kode_barang.toLowerCase().includes(keyword));
 
         const matchTipe = tipe === "" || row.tipe_trx === tipe;
 
@@ -123,9 +55,9 @@ export default function Transaksi() {
 
         return matchSearch && matchTipe && matchTanggal;
       })
-      // ORDER BY tanggal DESC, sama seperti query SQL asal
+      // URUTKAN BERDASARKAN TANGGAL TERBARU (ORDER BY tanggal DESC)
       .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
-  }, [search, tipe, tanggal]);
+  }, [transaksiList, search, tipe, tanggal]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8f9fc]">
@@ -138,18 +70,16 @@ export default function Transaksi() {
               Transaksi Barang
             </h1>
             <p className="text-gray-500 mt-1.5 text-[15px]">
-              Kelola barang masuk dan keluar gudang
+              Kelola barang masuk dan keluar gudang (Real-time DB)
             </p>
           </div>
           <div className="flex gap-3">
-            {/* Ganti href="#" dengan <Link to="/tambah-masuk"> dari react-router-dom saat routing siap */}
             <Link
               to="/tambah-masuk"
               className="bg-[#16a34a] text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm shadow-sm hover:bg-green-700 transition w-fit"
             >
               <ArrowUp size={16} /> Barang Masuk
             </Link>
-            {/* Ganti href="#" dengan <Link to="/tambah-keluar"> dari react-router-dom saat routing siap */}
             <Link
               to="/tambah-keluar"
               className="bg-[#ea580c] text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 text-sm shadow-sm hover:bg-orange-700 transition w-fit"
@@ -159,7 +89,7 @@ export default function Transaksi() {
           </div>
         </div>
 
-        {/* === Filter & Pencarian (real-time, tanpa reload) === */}
+        {/* === Filter & Pencarian === */}
         <div className="bg-white p-6 rounded-t-xl border border-gray-200 border-b-0 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
             <div className="col-span-6">
@@ -215,33 +145,25 @@ export default function Transaksi() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-y border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Tanggal
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Tipe
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Produk
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Jumlah
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Referensi
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Catatan
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">
-                  Oleh
-                </th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Tanggal</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Tipe</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Produk</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Jumlah</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Referensi</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Catatan</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase">Oleh</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredTransaksi.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                    Sedang memuat riwayat transaksi dari database...
+                  </td>
+                </tr>
+              ) : filteredTransaksi.length > 0 ? (
                 filteredTransaksi.map((row, idx) => {
-                  const isMasuk = row.tipe_trx === "Barang Masuk";
+                  const isMasuk = row.tipe_trx === "Barang Masuk" || row.tipe_trx === "masuk";
                   return (
                     <tr key={`${row.kode_barang}-${row.referensi}-${idx}`} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-[13px] text-gray-600 font-medium">
@@ -255,11 +177,7 @@ export default function Transaksi() {
                               : "bg-[#ffedd5] text-[#c2410c]"
                           } px-2.5 py-1 rounded-full text-[11px] font-bold flex w-max items-center gap-1`}
                         >
-                          {isMasuk ? (
-                            <ArrowUp size={10} />
-                          ) : (
-                            <ArrowDown size={10} />
-                          )}{" "}
+                          {isMasuk ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
                           {isMasuk ? "Masuk" : "Keluar"}
                         </span>
                       </td>
@@ -282,13 +200,13 @@ export default function Transaksi() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-[13px] font-semibold text-gray-700">
-                        {row.referensi}
+                        {row.referensi || "-"}
                       </td>
                       <td className="px-6 py-4 text-[12px] text-gray-500 w-48">
-                        {row.catatan}
+                        {row.catatan || "-"}
                       </td>
                       <td className="px-6 py-4 text-[12px] text-gray-600">
-                        {row.oleh}
+                        {row.oleh || "Admin"}
                       </td>
                     </tr>
                   );
@@ -296,7 +214,7 @@ export default function Transaksi() {
               ) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Tidak ada riwayat transaksi yang cocok dengan filter.
+                    Tidak ada riwayat transaksi di database.
                   </td>
                 </tr>
               )}
