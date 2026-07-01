@@ -18,7 +18,7 @@ export default function Login() {
 
     try {
       // Sesuaikan port 8000 di bawah dengan port Back-End temen lu (misal: 8000, 3000, atau 5000)
-      const response = await axios.post("http://localhost:8000/api/v1/login", {
+      const response = await axios.post("http://localhost:8000/api/v1/auth/login", {
         username: username,
         password: password,
       });
