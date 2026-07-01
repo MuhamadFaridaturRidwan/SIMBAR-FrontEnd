@@ -1,50 +1,55 @@
 // StokRendah.jsx
-import React, { useState, useMemo } from "react";
-import { AlertTriangle, PlusCircle } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { AlertTriangle, PlusCircle, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api"; // 1. Menggunakan konfigurasi API terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 
-// ----------------------------------------------------------------------
-// MOCK DATA
-// Sengaja dicampur: ada barang dengan stok aman (di atas 10 unit) dan ada
-// yang stoknya rendah/kritis (1-10 unit), supaya proses filter di bawah
-// benar-benar terlihat menyaring data, bukan menampilkan semuanya.
-// Nama field dipertahankan mirip kolom tabel `barang` (id_barang,
-// nama_barang, dst) agar mapping ke response API nanti mudah.
-// ----------------------------------------------------------------------
-const initialBarang = [
-  { id_barang: 1, kode_barang: "BRG-0021", nama_barang: "Helm Safety SNI Kuning", stok_saat_ini: 45 },
-  { id_barang: 2, kode_barang: "BRG-0231", nama_barang: "Toner Printer HP 12A", stok_saat_ini: 2 },
-  { id_barang: 3, kode_barang: "BRG-0114", nama_barang: "Baterai AA Alkaline", stok_saat_ini: 5 },
-  { id_barang: 4, kode_barang: "BRG-0099", nama_barang: "Lakban Bening 2 inch", stok_saat_ini: 3 },
-  { id_barang: 5, kode_barang: "BRG-0145", nama_barang: "Spidol Whiteboard Hitam", stok_saat_ini: 60 },
-  { id_barang: 6, kode_barang: "BRG-0177", nama_barang: "Sarung Tangan Safety Anti Panas", stok_saat_ini: 4 },
-  { id_barang: 7, kode_barang: "BRG-0210", nama_barang: "Gunting Listrik Crimping", stok_saat_ini: 17 },
-  { id_barang: 8, kode_barang: "BRG-0042", nama_barang: "Kabel Tie 20cm (pak)", stok_saat_ini: 1 },
-  { id_barang: 9, kode_barang: "BRG-0034", nama_barang: "Kardus Box Double Wall 40x40", stok_saat_ini: 8 },
-  { id_barang: 10, kode_barang: "BRG-0102", nama_barang: "Kertas A4 80gsm", stok_saat_ini: 0 },
-];
-
 export default function StokRendah() {
-  const [barangList] = useState(initialBarang);
+  const navigate = useNavigate();
+  
+  // 2. STATE REAL DATABASE (Mulai dari array kosong)
+  const [barangList, setBarangList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // ----------------------------------------------------------------------
-  // Filter otomatis, mengikuti query SQL asal:
-  // WHERE stok_saat_ini <= 10 AND stok_saat_ini > 0 ORDER BY stok_saat_ini ASC
-  // Catatan: barang yang stoknya benar-benar 0 (habis total) TIDAK dianggap
-  // "stok rendah" di sini — itu kategori terpisah ("Stok Habis"), sama
-  // seperti behavior PHP asal yang punya kondisi stok_saat_ini > 0.
-  // ----------------------------------------------------------------------
+  // 3. RITUAL PENGAMBILAN DATA REAL-TIME DARI DB LARAVEL
+  useEffect(() => {
+    const fetchBarangSistem = async () => {
+      try {
+        setLoading(true);
+        // Memanggil rute relatif /barang yang aman dengan token JWT otomatis
+        const response = await api.get("/barang");
+        setBarangList(response.data.data || response.data || []);
+      } catch (error) {
+        console.error("Gagal mengambil data dari database:", error);
+        if (error.response?.status === 401) {
+          alert("Sesi masuk habis, silakan login ulang!");
+        } else {
+          alert("Gagal memuat data peringatan stok dari server!");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBarangSistem();
+  }, []);
+
+  // 4. FILTERING PINTAR CLIENT-SIDE (Memilah barang kritis dari DB)
   const barangStokRendah = useMemo(() => {
     return barangList
-      .filter((item) => item.stok_saat_ini <= 10 && item.stok_saat_ini > 0)
-      .sort((a, b) => a.stok_saat_ini - b.stok_saat_ini);
+      .filter((item) => {
+        const stok = parseInt(item.stok_saat_ini ?? 0);
+        // Mempertahankan kondisi asal: Stok 1-10 unit masuk radar peringatan
+        return stok <= 10 && stok > 0;
+      })
+      // Urutkan dari stok yang paling kritis / paling sedikit (ASC)
+      .sort((a, b) => parseInt(a.stok_saat_ini ?? 0) - parseInt(b.stok_saat_ini ?? 0));
   }, [barangList]);
 
-  // Placeholder aksi restock — tinggal diarahkan ke route/form
-  // tambah-stok sungguhan (misal navigate(`/form-masuk?id=${id}`)) saat
-  // react-router-dom sudah dipasang.
+  // 5. AKSI RESTOCK - Otomatis mengarahkan ke form penerimaan dengan membawa data item
   function handleTambahStok(item) {
-    console.log("Tambah stok untuk:", item);
+    navigate("/tambah-masuk", { state: { id_barang: item.id_barang } });
   }
 
   return (
@@ -60,20 +65,21 @@ export default function StokRendah() {
                 Peringatan Stok Rendah
               </h1>
               <p className="text-gray-500 mt-1 text-[15px]">
-                Menampilkan {barangStokRendah.length} produk dengan stok 10
-                unit ke bawah
+                {loading ? "Menghitung data..." : `Menampilkan ${barangStokRendah.length} produk dengan stok 10 unit ke bawah`}
               </p>
             </div>
           </div>
-          {/* Ganti href="#" dengan <Link to="/dashboard"> dari react-router-dom saat routing siap */}
-          <a
-            href="#"
+          
+          {/* Menggunakan komponen Link bawaan react-router-dom agar navigasi instant tanpa reload */}
+          <Link
+            to="/"
             className="text-[#1d4ed8] text-sm font-semibold hover:underline flex-shrink-0"
           >
-            ← Kembali ke Dashboard
-          </a>
+            &larr; Kembali ke Dashboard
+          </Link>
         </div>
 
+        {/* === Tabel Tampilan Monitoring Peringatan Stok === */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -93,7 +99,16 @@ export default function StokRendah() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {barangStokRendah.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-gray-500 font-semibold text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin text-gray-400" />
+                      Memindai volume stok barang di database...
+                    </div>
+                  </td>
+                </tr>
+              ) : barangStokRendah.length > 0 ? (
                 barangStokRendah.map((item) => (
                   <tr key={item.id_barang} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 text-sm font-mono text-[#1d4ed8]">
@@ -109,7 +124,7 @@ export default function StokRendah() {
                       <button
                         type="button"
                         onClick={() => handleTambahStok(item)}
-                        className="bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-1.5 w-fit transition"
+                        className="bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center gap-1.5 w-fit transition cursor-pointer"
                       >
                         <PlusCircle size={14} /> Tambah Stok
                       </button>
@@ -119,7 +134,7 @@ export default function StokRendah() {
               ) : (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
-                    Tidak ada produk dengan stok rendah saat ini.
+                    Aman, tidak ada produk dengan kondisi stok rendah saat ini.
                   </td>
                 </tr>
               )}
