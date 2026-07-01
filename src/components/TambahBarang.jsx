@@ -1,8 +1,8 @@
 // TambahBarang.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, Loader2 } from "lucide-react"; // Tambah icon Loader2
-import axios from "axios"; // 1. Import axios
+import { ArrowLeft, Save, Loader2 } from "lucide-react"; // Menggunakan icon Loader2
+import api from "../api"; // 1. Mengubah import dari axios ke instance api terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 
 function TambahBarang() {
@@ -30,16 +30,13 @@ function TambahBarang() {
     }));
   };
 
-  // 3. Ubah jadi Async/Await untuk nembak API Laravel
+  // 3. Modifikasi fungsi Submit Form menggunakan instance api
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true); // Nyalakan efek loading
     
     try {
-      /* * CATATAN: Pastikan nama field di sini sesuai dengan yang diminta 
-       * oleh kodingan API Laravel temen lu. Jika Laravel meminta 'stok_saat_ini', 
-       * lu bisa ubah format datanya di sini sebelum dikirim:
-       */
+      // Mapping payload agar nama field sesuai dengan struktur tabel 'barang' di database Laravel
       const payload = {
         nama_barang: formData.nama_barang,
         kode_barang: formData.kode_barang,
@@ -47,19 +44,23 @@ function TambahBarang() {
         supplier: formData.supplier,
         lokasi: formData.lokasi,
         harga_satuan: formData.harga_satuan,
-        stok_saat_ini: formData.stok_awal, // Mapping agar sesuai dengan DB
+        stok_saat_ini: formData.stok_awal, // Mapping agar sesuai dengan DB Back-End
         stok_min: formData.stok_min,
       };
 
-      // Tembak endpoint POST ke backend
-      await axios.post("http://localhost:8000/api/v1/barang", payload);
+      // Tembak endpoint POST relatif ke /barang (Token otomatis disisipkan Interceptor)
+      await api.post("/barang", payload);
       
-      alert("Data barang berhasil ditambahkan ke database!");
+      alert("Data barang berhasil ditambahkan ke database gudang!");
       navigate("/daftar-barang");
       
     } catch (error) {
       console.error("Gagal menyimpan barang:", error);
-      alert("Gagal menyimpan data barang. Silakan cek koneksi atau kodingan API!");
+      if (error.response?.status === 401) {
+        alert("Sesi masuk habis, silakan login ulang!");
+      } else {
+        alert("Gagal menyimpan data barang. Silakan cek kembali koneksi atau isian data Anda!");
+      }
     } finally {
       setIsSubmitting(false); // Matikan efek loading
     }
@@ -235,7 +236,6 @@ function TambahBarang() {
                 Batal
               </Link>
               
-              {/* 4. Update Button dengan efek Loading */}
               <button
                 type="submit"
                 disabled={isSubmitting}
