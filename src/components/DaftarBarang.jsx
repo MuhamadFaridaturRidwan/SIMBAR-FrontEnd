@@ -1,43 +1,50 @@
 // DaftarBarang.jsx
-import React, { useState, useEffect, useMemo } from "react"; // 1. Tambah useEffect
+import React, { useState, useEffect, useMemo } from "react"; 
 import { Package, Search, MapPin, Plus, Trash2, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
-import axios from "axios"; // 2. Import axios
+import api from "../api"; // 1. Menggunakan konfigurasi API terpusat (Auto-token)
 import Sidebar from "./Sidebar";
 
-// Helper status tetap dipertahankan
+// Helper status tetap dipertahankan dengan aman
 function getStatusInfo(item) {
-  if (parseInt(item.stok_saat_ini) === 0) {
+  const stokSaatIni = parseInt(item.stok_saat_ini ?? 0);
+  const stokMin = parseInt(item.stok_min ?? 0);
+
+  if (stokSaatIni === 0) {
     return { label: "Habis", className: "bg-red-100 text-red-700" };
   }
-  if (parseInt(item.stok_saat_ini) <= parseInt(item.stok_min)) {
+  if (stokSaatIni <= stokMin) {
     return { label: "Rendah", className: "bg-yellow-100 text-yellow-700" };
   }
   return { label: "Tersedia", className: "bg-[#dcfce3] text-[#166534]" };
 }
 
 export default function DaftarBarang() {
-  // 3. Set nilai awal jadi array kosong untuk menampung data dari database
+  // Set nilai awal jadi array kosong untuk menampung data dari database
   const [barangList, setBarangList] = useState([]);
-  const [loading, setLoading] = useState(true); // State loading biar user tahu data lagi diambil
+  const [loading, setLoading] = useState(true); // State loading biar UX mantap
 
-  // State filter
+  // State filter pencarian
   const [search, setSearch] = useState("");
   const [kategori, setKategori] = useState("");
   const [status, setStatus] = useState("");
 
-  // 4. Ritual mengambil data asli dari API Laravel Back-End
+  // 2. MENGAMBIL DATA ASLI DARI DATABASE VIA INSTANCE API (GET)
   const fetchBarang = async () => {
     try {
       setLoading(true);
-      // Sesuaikan URL-nya dengan endpoint API milik temen lu (contoh: /api/v1/barang)
-      const response = await axios.get("http://localhost:8000/api/v1/barang");
+      // Cukup panggil /barang relatif, token otomatis disisipkan di header
+      const response = await api.get("/barang");
       
-      // Biasanya response data Laravel dibungkus dalam response.data.data
-      setBarangList(response.data.data || response.data); 
+      // Mengantisipasi struktur data bawaan Laravel resource pagination
+      setBarangList(response.data.data || response.data || []); 
     } catch (error) {
       console.error("Gagal mengambil data dari database:", error);
-      alert("Gagal memuat data barang dari server!");
+      if (error.response?.status === 401) {
+        alert("Sesi masuk habis, silakan login ulang!");
+      } else {
+        alert("Gagal memuat data barang dari server!");
+      }
     } finally {
       setLoading(false);
     }
@@ -59,8 +66,8 @@ export default function DaftarBarang() {
       const matchKategori = kategori === "" || item.kategori === kategori;
 
       let matchStatus = true;
-      const stokSaatIni = parseInt(item.stok_saat_ini);
-      const stokMin = parseInt(item.stok_min);
+      const stokSaatIni = parseInt(item.stok_saat_ini ?? 0);
+      const stokMin = parseInt(item.stok_min ?? 0);
 
       if (status === "Stok Tersedia") {
         matchStatus = stokSaatIni > stokMin;
@@ -74,29 +81,29 @@ export default function DaftarBarang() {
     });
   }, [barangList, search, kategori, status]);
 
-  // 5. Fungsi Hapus Barang terintegrasi ke API Back-End (DELETE)
+  // 3. FUNGSI HAPUS DATA REAL-TIME DARI DATABASE (DELETE)
   async function handleHapus(item) {
     const konfirmasi = window.confirm(
-      `Yakin ingin menghapus ${item.nama_barang}?`
+      `Yakin ingin menghapus produk "${item.nama_barang}" dari database gudang?`
     );
     if (konfirmasi) {
       try {
-        // Tembak endpoint delete sesuai id_barang
-        await axios.delete(`http://localhost:8000/api/v1/barang/${item.id_barang}`);
+        // Tembak endpoint DELETE relatif sesuai id_barang yang aktif
+        await api.delete(`/barang/${item.id_barang}`);
         
-        // Jika sukses di database, update state lokal biar barisnya hilang dari layar
+        // Jika sukses di DB, potong state lokal biar barisnya langsung hilang tanpa reload
         setBarangList((prev) => prev.filter((b) => b.id_barang !== item.id_barang));
-        alert("Barang berhasil dihapus!");
+        alert("Barang berhasil dihapus dari database!");
       } catch (error) {
         console.error("Gagal menghapus barang:", error);
-        alert("Gagal menghapus barang dari database!");
+        alert("Gagal menghapus barang. Data mungkin sedang terikat transaksi!");
       }
     }
   }
 
   function handleEdit(item) {
-    console.log("Edit barang:", item);
-    // Nanti lu bisa arahkan pakai useNavigate ke halaman edit, contoh:
+    console.log("Edit barang dipicu:", item);
+    // Nanti lu tinggal panggil useNavigate ke form edit:
     // navigate(`/edit-barang/${item.id_barang}`);
   }
 
@@ -183,7 +190,7 @@ export default function DaftarBarang() {
           Menampilkan {filteredBarang.length} produk
         </p>
 
-        {/* === Tabel Barang === */}
+        {/* === Tabel Tampilan Inventori Gudang === */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -200,8 +207,8 @@ export default function DaftarBarang() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Sedang memuat data dari database...
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500 font-semibold text-sm">
+                    Sedang memuat data dari database inventori...
                   </td>
                 </tr>
               ) : filteredBarang.length > 0 ? (
@@ -230,9 +237,11 @@ export default function DaftarBarang() {
                           {item.kategori}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-600 flex items-center">
-                        <MapPin size={13} className="text-gray-400 mr-1.5" />
-                        {item.lokasi || "-"}
+                      <td className="px-6 py-4 text-[13px] text-gray-600">
+                        <div className="flex items-center">
+                          <MapPin size={13} className="text-gray-400 mr-1.5" />
+                          {item.lokasi || "-"}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-gray-900 text-sm">
@@ -253,7 +262,7 @@ export default function DaftarBarang() {
                             type="button"
                             onClick={() => handleEdit(item)}
                             title="Edit barang"
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-[#1d4ed8] hover:border-blue-200 transition"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-[#1d4ed8] hover:border-blue-200 transition cursor-pointer"
                           >
                             <Edit size={14} />
                           </button>
@@ -261,7 +270,7 @@ export default function DaftarBarang() {
                             type="button"
                             onClick={() => handleHapus(item)}
                             title="Hapus barang"
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition cursor-pointer"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -273,7 +282,7 @@ export default function DaftarBarang() {
               ) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    Tidak ada produk di database.
+                    Tidak ada produk di database inventori gudang.
                   </td>
                 </tr>
               )}
