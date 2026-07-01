@@ -1,12 +1,12 @@
 // Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, Loader2 } from "lucide-react";
+import { Lock, User, Loader2 } from "lucide-react";
 import axios from "axios";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function Login() {
     try {
       // Sesuaikan port 8000 di bawah dengan port Back-End temen lu (misal: 8000, 3000, atau 5000)
       const response = await axios.post("http://localhost:8000/api/v1/login", {
-        email: email,
+        username: username,
         password: password,
       });
 
@@ -34,7 +34,7 @@ export default function Login() {
     } catch (error) {
       if (error.response) {
         // Eror balasan dari server BE (Username/Password salah)
-        setErrorMsg(error.response.data.message || "Email atau password salah!");
+        setErrorMsg(error.response.data.message || "Username atau password salah!");
       } else {
         // Eror koneksi jaringan (Server BE belum dinyalain)
         setErrorMsg("Gagal terhubung ke server Back-End. Pastikan BE menyala!");
@@ -60,15 +60,15 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-[13px] font-semibold text-gray-700 mb-2">Alamat Email</label>
+            <label className="block text-[13px] font-semibold text-gray-700 mb-2">Username</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-3.5 text-gray-400 w-4 h-4" />
+              <User className="absolute left-3 top-3.5 text-gray-400 w-4 h-4" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@unper.ac.id"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition"
               />
             </div>
