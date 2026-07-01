@@ -1,12 +1,13 @@
+// TambahBarang.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react"; // Tambah icon Loader2
+import axios from "axios"; // 1. Import axios
 import Sidebar from "./Sidebar";
 
 function TambahBarang() {
   const navigate = useNavigate();
 
-  // State terkontrol untuk menampung seluruh data form
   const [formData, setFormData] = useState({
     nama_barang: "",
     kode_barang: "",
@@ -18,7 +19,9 @@ function TambahBarang() {
     stok_min: "5",
   });
 
-  // Handle perubahan nilai input
+  // 2. State untuk mencegah user klik tombol berkali-kali saat loading
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -27,23 +30,45 @@ function TambahBarang() {
     }));
   };
 
-  // Handle saat form disubmit
-  const handleSubmit = (e) => {
+  // 3. Ubah jadi Async/Await untuk nembak API Laravel
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true); // Nyalakan efek loading
     
-    // Simulasi penambahan data sukses (Front-End)
-    alert("Data barang berhasil ditambahkan!");
-    
-    // Redirect halus kembali ke halaman daftar barang
-    navigate("/daftar-barang");
+    try {
+      /* * CATATAN: Pastikan nama field di sini sesuai dengan yang diminta 
+       * oleh kodingan API Laravel temen lu. Jika Laravel meminta 'stok_saat_ini', 
+       * lu bisa ubah format datanya di sini sebelum dikirim:
+       */
+      const payload = {
+        nama_barang: formData.nama_barang,
+        kode_barang: formData.kode_barang,
+        kategori: formData.kategori,
+        supplier: formData.supplier,
+        lokasi: formData.lokasi,
+        harga_satuan: formData.harga_satuan,
+        stok_saat_ini: formData.stok_awal, // Mapping agar sesuai dengan DB
+        stok_min: formData.stok_min,
+      };
+
+      // Tembak endpoint POST ke backend
+      await axios.post("http://localhost:8000/api/v1/barang", payload);
+      
+      alert("Data barang berhasil ditambahkan ke database!");
+      navigate("/daftar-barang");
+      
+    } catch (error) {
+      console.error("Gagal menyimpan barang:", error);
+      alert("Gagal menyimpan data barang. Silakan cek koneksi atau kodingan API!");
+    } finally {
+      setIsSubmitting(false); // Matikan efek loading
+    }
   };
 
   return (
     <div className="bg-[#f8f9fc] flex h-screen overflow-hidden">
-      {/* Panggil komponen Sidebar di sisi kiri */}
       <Sidebar />
 
-      {/* Konten Utama Form */}
       <div className="flex-grow p-10 overflow-y-auto">
         <div className="mb-8">
           <Link
@@ -56,7 +81,7 @@ function TambahBarang() {
             Tambah Barang Baru
           </h1>
           <p className="text-gray-500 mt-1.5 text-[15px]">
-            Masukkan detail informasi produk ke dalam database gudang.
+            Masukkan detail informasi produk ke dalam database gudang (Real-time DB).
           </p>
         </div>
 
@@ -209,11 +234,26 @@ function TambahBarang() {
               >
                 Batal
               </Link>
+              
+              {/* 4. Update Button dengan efek Loading */}
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-lg font-semibold text-sm text-white bg-[#1d4ed8] hover:bg-blue-800 transition shadow-sm flex items-center gap-2 cursor-pointer"
+                disabled={isSubmitting}
+                className={`px-6 py-2.5 rounded-lg font-semibold text-sm text-white transition shadow-sm flex items-center gap-2 ${
+                  isSubmitting 
+                  ? "bg-blue-400 cursor-not-allowed" 
+                  : "bg-[#1d4ed8] hover:bg-blue-800 cursor-pointer"
+                }`}
               >
-                <Save size={16} /> Simpan Barang
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} /> Simpan Barang
+                  </>
+                )}
               </button>
             </div>
           </form>
