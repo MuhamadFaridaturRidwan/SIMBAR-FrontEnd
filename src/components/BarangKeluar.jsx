@@ -1,17 +1,17 @@
-import { useState } from "react";
+// BarangKeluar.jsx
+import { useState, useEffect } from "react"; // 1. Tambah useEffect
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, ArrowDown } from "lucide-react";
+import { ArrowLeft, Save, ArrowDown, Loader2 } from "lucide-react"; // Tambah Loader2
+import axios from "axios"; // 2. Import axios
 import Sidebar from "./Sidebar";
 
 function BarangKeluar() {
   const navigate = useNavigate();
 
-  // Mock data produk yang tersedia di gudang untuk opsi dropdown
-  const [mockBarang] = useState([
-    { id_barang: "1", kode_barang: "SF-001", nama_barang: "Helm Safety Krisbow", stok_saat_ini: 25 },
-    { id_barang: "2", kode_barang: "PK-002", nama_barang: "Kardus Packing A4", stok_saat_ini: 150 },
-    { id_barang: "3", kode_barang: "OS-003", nama_barang: "Spidol Snowman Hitam", stok_saat_ini: 4 },
-  ]);
+  // 3. STATE BARU (Penampung opsi produk dari database)
+  const [barangOptions, setBarangOptions] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     id_barang: "",
@@ -22,29 +22,61 @@ function BarangKeluar() {
     catatan: "",
   });
 
+  // 4. RITUAL FETCH DATA BARANG (Untuk Dropdown & Validasi Stok)
+  useEffect(() => {
+    const fetchBarangOptions = async () => {
+      try {
+        setLoadingOptions(true);
+        const response = await axios.get("http://localhost:8000/api/v1/barang");
+        setBarangOptions(response.data.data || response.data);
+      } catch (error) {
+        console.error("Gagal memuat opsi produk:", error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+
+    fetchBarangOptions();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // 5. EKSEKUSI API & VALIDASI STOK
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Cari produk yang dipilih untuk divalidasi stoknya
-    const produkTerpilih = mockBarang.find((b) => b.id_barang === formData.id_barang);
+    // Cari produk yang dipilih dari array state yang ditarik dari DB
+    const produkTerpilih = barangOptions.find(
+      (b) => String(b.id_barang) === String(formData.id_barang)
+    );
 
     if (produkTerpilih) {
       const jumlahKeluar = parseInt(formData.jumlah);
       
-      // Validasi: Jangan sampai pengeluaran melebihi stok yang ada
+      // Validasi Pintar: Jangan sampai pengeluaran melebihi stok di DB
       if (produkTerpilih.stok_saat_ini < jumlahKeluar) {
-        alert(`GAGAL! Stok ${produkTerpilih.nama_barang} tidak mencukupi. Sisa stok hanya: ${produkTerpilih.stok_saat_ini}`);
-        return;
+        alert(`GAGAL! Stok ${produkTerpilih.nama_barang} tidak mencukupi.\nSisa stok di gudang hanya: ${produkTerpilih.stok_saat_ini} unit.`);
+        return; // Hentikan proses, jangan tembak ke API
       }
     }
 
-    alert("Transaksi Barang Keluar Berhasil dicatat!");
-    navigate("/transaksi");
+    setIsSubmitting(true);
+
+    try {
+      // Sesuaikan rute endpoint ini dengan milik temen lu (misal: /api/v1/barang-keluar)
+      await axios.post("http://localhost:8000/api/v1/barang-keluar", formData);
+
+      alert("Transaksi Barang Keluar Berhasil dicatat ke database!");
+      navigate("/transaksi");
+    } catch (error) {
+      console.error("Gagal mencatat barang keluar:", error);
+      alert("Gagal menyimpan transaksi keluar. Cek kembali isian atau koneksi API Anda!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -58,22 +90,31 @@ function BarangKeluar() {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
             Form Barang Keluar <span className="text-[#ea580c]"><ArrowDown size={28} /></span>
           </h1>
-          <p className="text-gray-500 mt-1.5 text-[15px]">Catat pengeluaran/pengiriman stok dari gudang.</p>
+          <p className="text-gray-500 mt-1.5 text-[15px]">Catat pengeluaran/pengiriman stok dari gudang (Real-time DB).</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm max-w-4xl">
           <div className="p-6 border-b border-gray-100 bg-[#fff7ed] rounded-t-xl">
-            <h2 class="text-lg font-bold text-[#c2410c]">Detail Pengeluaran Barang</h2>
+            <h2 className="text-lg font-bold text-[#c2410c]">Detail Pengeluaran Barang</h2>
           </div>
           <form onSubmit={handleSubmit} className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="md:col-span-2">
                 <label className="block text-[13px] font-semibold text-gray-700 mb-2">Pilih Produk <span className="text-red-500">*</span></label>
-                <select name="id_barang" required value={formData.id_barang} onChange={handleChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 cursor-pointer">
-                  <option value="">-- Pilih Barang dari Gudang --</option>
-                  {mockBarang.map((b) => (
+                <select 
+                  name="id_barang" 
+                  required 
+                  disabled={loadingOptions}
+                  value={formData.id_barang} 
+                  onChange={handleChange} 
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-500 cursor-pointer"
+                >
+                  <option value="">
+                    {loadingOptions ? "-- Sedang memuat produk dari database... --" : "-- Pilih Barang dari Gudang --"}
+                  </option>
+                  {barangOptions.map((b) => (
                     <option key={b.id_barang} value={b.id_barang}>
-                      {b.kode_barang} - {b.nama_barang} (Sisa Stok: {b.stok_saat_ini})
+                      {b.kode_barang} - {b.nama_barang} (Sisa Stok: {b.stok_saat_ini ?? 0})
                     </option>
                   ))}
                 </select>
@@ -101,8 +142,25 @@ function BarangKeluar() {
             </div>
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
               <Link to="/transaksi" className="px-5 py-2.5 rounded-lg font-semibold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200">Batal</Link>
-              <button type="submit" className="px-6 py-2.5 rounded-lg font-semibold text-sm text-white bg-[#ea580c] hover:bg-orange-700 shadow-sm flex items-center gap-2 cursor-pointer">
-                <Save size={16} /> Simpan Transaksi Keluar
+              
+              <button 
+                type="submit" 
+                disabled={isSubmitting || loadingOptions}
+                className={`px-6 py-2.5 rounded-lg font-semibold text-sm text-white transition shadow-sm flex items-center gap-2 ${
+                  isSubmitting || loadingOptions
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-[#ea580c] hover:bg-orange-700 cursor-pointer"
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} /> Simpan Transaksi Keluar
+                  </>
+                )}
               </button>
             </div>
           </form>
