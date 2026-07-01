@@ -5,8 +5,9 @@ import Transaksi from "./components/Transaksi";
 import Laporan from "./components/Laporan";
 import StokRendah from "./components/StokRendah";
 import TambahBarang from "./components/TambahBarang";
-import BarangMasuk from "./components/BarangMasuk";   // <-- Import baru
-import BarangKeluar from "./components/BarangKeluar"; // <-- Import baru
+import BarangMasuk from "./components/BarangMasuk"; 
+import BarangKeluar from "./components/BarangKeluar"; 
+import Login from "./components/Login";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/tambah-keluar" element={<BarangKeluar />} /> {/* <-- Jalur Form Keluar */}
         <Route path="/laporan" element={<Laporan />} />
         <Route path="/stok-rendah" element={<StokRendah />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </Router>
   );
