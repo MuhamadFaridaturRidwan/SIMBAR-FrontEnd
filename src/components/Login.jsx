@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, User, Loader2 } from "lucide-react";
-import axios from "axios";
+import api from "../api"; // 1. Ubah import dari axios biasa ke instance api terpusat
+import { UserCheck } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,8 +18,8 @@ export default function Login() {
     setErrorMsg("");
 
     try {
-
-      const response = await axios.post("http://localhost:8000/api/v1/auth/login", {
+      // 2. Gunakan api.post dengan alamat relatif /auth/login
+      const response = await api.post("/auth/login", {
         username: username,
         password: password,
       });
@@ -33,11 +34,11 @@ export default function Login() {
       navigate("/"); // Lempar ke halaman Dashboard utama
     } catch (error) {
       if (error.response) {
-        // Eror balasan dari server BE (Username/Password salah)
+        // Eror balasan dari server BE (Username/Password salah atau tidak terdaftar)
         setErrorMsg(error.response.data.message || "Username atau password salah!");
       } else {
-        // Eror koneksi jaringan (Server BE belum dinyalain)
-        setErrorMsg("Gagal terhubung ke server Back-End. Pastikan BE menyala!");
+        // Eror koneksi jaringan (Server BE belum dinyalain atau salah port)
+        setErrorMsg("Gagal terhubung ke server Back-End. Pastikan server Laravel menyala!");
       }
     } finally {
       setLoading(false);
