@@ -24,8 +24,8 @@ export default function Login() {
         password: password,
       });
 
-      // Ambil token dari response Back-End
-      const token = response.data.token;
+      const token = response.data.access_token || response.data.token || response.data.data?.token;
+      console.log("Isi Respon dari BE:", response.data);
 
       // Simpan token ke localStorage browser agar status login permanen
       localStorage.setItem("authToken", token);
